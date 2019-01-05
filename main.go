@@ -130,6 +130,33 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Value: vVid,
 					})
 				}
+			case sensors.FeatureFan:
+				vInput, hasInput, errsInput := getValue(chip, feature, sensors.SubfeatureFanInput)
+				if errsInput != nil {
+					errs = errsInput
+					return
+				}
+
+				if hasInput {
+					vMin, errsMin := getOptionalValue(chip, feature, sensors.SubfeatureFanMin)
+					if errsMin != nil {
+						errs = errsMin
+						return
+					}
+
+					vMax, errsMax := getOptionalValue(chip, feature, sensors.SubfeatureFanMax)
+					if errsMax != nil {
+						errs = errsMax
+						return
+					}
+
+					perfdata = append(perfdata, Perfdata{
+						Label: pdl(chipName, featureName, "input"),
+						Value: vInput,
+						Min:   vMin,
+						Max:   vMax,
+					})
+				}
 			}
 		}
 	}

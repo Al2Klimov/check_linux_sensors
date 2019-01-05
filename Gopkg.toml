@@ -30,6 +30,10 @@
   name = "github.com/Al2Klimov/go-gen-source-repos"
 
 [[constraint]]
+  branch = "master"
+  name = "github.com/Al2Klimov/go-linux-sensors"
+
+[[constraint]]
   name = "github.com/Al2Klimov/go-monplug-utils"
   version = "0.1.0"
 

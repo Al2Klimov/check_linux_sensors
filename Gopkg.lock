@@ -10,6 +10,14 @@
   revision = "6d51d947ed0c66ae27c3eb5dcfbca5a2145818af"
 
 [[projects]]
+  branch = "master"
+  digest = "1:a2d20ca4ac73233950c7d14c6ccca85ef4440144eaa69d23f24dafefaa4a996a"
+  name = "github.com/Al2Klimov/go-linux-sensors"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "7fce7cfded3e8d2a7f677e6c1be04451914f9527"
+
+[[projects]]
   digest = "1:2367486b6f735ef32e09d8bd8394167b6944aaef91a36788801ce460ff4051d8"
   name = "github.com/Al2Klimov/go-monplug-utils"
   packages = ["."]
@@ -41,6 +49,7 @@
   analyzer-version = 1
   input-imports = [
     "github.com/Al2Klimov/go-gen-source-repos",
+    "github.com/Al2Klimov/go-linux-sensors",
     "github.com/Al2Klimov/go-monplug-utils",
   ]
   solver-name = "gps-cdcl"

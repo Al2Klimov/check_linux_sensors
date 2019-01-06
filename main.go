@@ -3,12 +3,15 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	_ "github.com/Al2Klimov/go-gen-source-repos"
 	sensors "github.com/Al2Klimov/go-linux-sensors"
 	. "github.com/Al2Klimov/go-monplug-utils"
+	"html"
 	"math"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -31,6 +34,9 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 	sensors.Init(nil)
 	defer sensors.Cleanup()
 
+	longOutput := bytes.Buffer{}
+	longOutput.Write([]byte("\n\n"))
+
 	for _, chip := range sensors.GetDetectedChips(nil) {
 		chipNameRaw, errMB := chip.MarshalBinary()
 		if errMB != nil {
@@ -40,8 +46,24 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 
 		chipName := string(chipNameRaw)
 
+		longOutput.Write([]byte("<p><b>Chip: "))
+		longOutput.Write([]byte(html.EscapeString(chipName)))
+		longOutput.Write([]byte("</b>"))
+
+		if adapterName, hasAdapterName := chip.GetBus().GetAdapterName(); hasAdapterName {
+			longOutput.Write([]byte(" ("))
+			longOutput.Write([]byte(html.EscapeString(adapterName)))
+			longOutput.Write([]byte{')'})
+		}
+
+		longOutput.Write([]byte("</p>"))
+
 		for _, feature := range chip.GetFeatures() {
 			featureName := feature.GetName()
+			featureIsSupported := true
+			featureHasAlarm := false
+			featureHasFault := false
+			featureStats := [][2]string{}
 
 			switch feature.GetType() {
 			case sensors.FeatureIn:
@@ -125,6 +147,26 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Min:   vMin,
 						Max:   vMax,
 					})
+
+					featureStats = append(featureStats, [2]string{"Input", fmtNum(vInput, "V")})
+
+					if vMin.IsSet {
+						featureStats = append(featureStats, [2]string{"Minimum", fmtNum(vMin.Value, "V")})
+					}
+
+					if vMax.IsSet {
+						featureStats = append(featureStats, [2]string{"Maximum", fmtNum(vMax.Value, "V")})
+					}
+
+					if vCrit.IsSet {
+						if vCrit.Start != negInf {
+							featureStats = append(featureStats, [2]string{"Critical, lower", fmtNum(vCrit.Start, "V")})
+						}
+
+						if vCrit.End != posInf {
+							featureStats = append(featureStats, [2]string{"Critical, upper", fmtNum(vCrit.End, "V")})
+						}
+					}
 				}
 
 				if hasAverage {
@@ -132,6 +174,8 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Label: pdl(chipName, featureName, "average"),
 						Value: vAverage,
 					})
+
+					featureStats = append(featureStats, [2]string{"Average", fmtNum(vAverage, "V")})
 				}
 
 				if hasLowest {
@@ -139,6 +183,8 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Label: pdl(chipName, featureName, "lowest"),
 						Value: vLowest,
 					})
+
+					featureStats = append(featureStats, [2]string{"Lowest", fmtNum(vLowest, "V")})
 				}
 
 				if hasHighest {
@@ -146,6 +192,8 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Label: pdl(chipName, featureName, "highest"),
 						Value: vHighest,
 					})
+
+					featureStats = append(featureStats, [2]string{"Highest", fmtNum(vHighest, "V")})
 				}
 
 				if hasAlarm {
@@ -156,6 +204,10 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Min:   OptionalNumber{true, 0},
 						Max:   OptionalNumber{true, 1},
 					})
+
+					if vAlarm == 1.0 {
+						featureHasAlarm = true
+					}
 				}
 
 				if hasMinAlarm {
@@ -166,6 +218,10 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Min:   OptionalNumber{true, 0},
 						Max:   OptionalNumber{true, 1},
 					})
+
+					if vMinAlarm == 1.0 {
+						featureHasAlarm = true
+					}
 				}
 
 				if hasMaxAlarm {
@@ -176,6 +232,10 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Min:   OptionalNumber{true, 0},
 						Max:   OptionalNumber{true, 1},
 					})
+
+					if vMaxAlarm == 1.0 {
+						featureHasAlarm = true
+					}
 				}
 
 				if hasLcritAlarm {
@@ -186,6 +246,10 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Min:   OptionalNumber{true, 0},
 						Max:   OptionalNumber{true, 1},
 					})
+
+					if vLcritAlarm == 1.0 {
+						featureHasAlarm = true
+					}
 				}
 
 				if hasCritAlarm {
@@ -196,6 +260,10 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Min:   OptionalNumber{true, 0},
 						Max:   OptionalNumber{true, 1},
 					})
+
+					if vCritAlarm == 1.0 {
+						featureHasAlarm = true
+					}
 				}
 			case sensors.FeatureVid:
 				vVid, hasVid, errsVid := getValue(chip, feature, sensors.SubfeatureVid)
@@ -209,6 +277,8 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Label: pdl(chipName, featureName, "vid"),
 						Value: vVid,
 					})
+
+					featureStats = append(featureStats, [2]string{"Ref. voltage", fmtNum(vVid, "V")})
 				}
 			case sensors.FeatureFan:
 				vInput, hasInput, errsInput := getValue(chip, feature, sensors.SubfeatureFanInput)
@@ -260,6 +330,16 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Min:   vMin,
 						Max:   vMax,
 					})
+
+					featureStats = append(featureStats, [2]string{"Input", fmtNum(vInput, "RPM")})
+
+					if vMin.IsSet {
+						featureStats = append(featureStats, [2]string{"Minimum", fmtNum(vMin.Value, "RPM")})
+					}
+
+					if vMax.IsSet {
+						featureStats = append(featureStats, [2]string{"Maximum", fmtNum(vMax.Value, "RPM")})
+					}
 				}
 
 				if hasAlarm {
@@ -270,6 +350,10 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Min:   OptionalNumber{true, 0},
 						Max:   OptionalNumber{true, 1},
 					})
+
+					if vAlarm == 1.0 {
+						featureHasAlarm = true
+					}
 				}
 
 				if hasMinAlarm {
@@ -280,6 +364,10 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Min:   OptionalNumber{true, 0},
 						Max:   OptionalNumber{true, 1},
 					})
+
+					if vMinAlarm == 1.0 {
+						featureHasAlarm = true
+					}
 				}
 
 				if hasMaxAlarm {
@@ -290,6 +378,10 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Min:   OptionalNumber{true, 0},
 						Max:   OptionalNumber{true, 1},
 					})
+
+					if vMaxAlarm == 1.0 {
+						featureHasAlarm = true
+					}
 				}
 
 				if hasFault {
@@ -300,6 +392,10 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Min:   OptionalNumber{true, 0},
 						Max:   OptionalNumber{true, 1},
 					})
+
+					if vFault == 1.0 {
+						featureHasFault = true
+					}
 				}
 			case sensors.FeatureTemp:
 				vInput, hasInput, errsInput := getValue(chip, feature, sensors.SubfeatureTempInput)
@@ -388,6 +484,26 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Min:   vMin,
 						Max:   vMax,
 					})
+
+					featureStats = append(featureStats, [2]string{"Input", fmtNum(vInput, "deg. C")})
+
+					if vMin.IsSet {
+						featureStats = append(featureStats, [2]string{"Minimum", fmtNum(vMin.Value, "deg. C")})
+					}
+
+					if vMax.IsSet {
+						featureStats = append(featureStats, [2]string{"Maximum", fmtNum(vMax.Value, "deg. C")})
+					}
+
+					if vCrit.IsSet {
+						if vCrit.Start != negInf {
+							featureStats = append(featureStats, [2]string{"Critical, lower", fmtNum(vCrit.Start, "deg. C")})
+						}
+
+						if vCrit.End != posInf {
+							featureStats = append(featureStats, [2]string{"Critical, upper", fmtNum(vCrit.End, "deg. C")})
+						}
+					}
 				}
 
 				if hasLowest {
@@ -395,6 +511,8 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Label: pdl(chipName, featureName, "lowest"),
 						Value: vLowest,
 					})
+
+					featureStats = append(featureStats, [2]string{"Lowest", fmtNum(vLowest, "deg. C")})
 				}
 
 				if hasHighest {
@@ -402,6 +520,8 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Label: pdl(chipName, featureName, "highest"),
 						Value: vHighest,
 					})
+
+					featureStats = append(featureStats, [2]string{"Highest", fmtNum(vHighest, "deg. C")})
 				}
 
 				if hasAlarm {
@@ -412,6 +532,10 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Min:   OptionalNumber{true, 0},
 						Max:   OptionalNumber{true, 1},
 					})
+
+					if vAlarm == 1.0 {
+						featureHasAlarm = true
+					}
 				}
 
 				if hasMinAlarm {
@@ -422,6 +546,10 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Min:   OptionalNumber{true, 0},
 						Max:   OptionalNumber{true, 1},
 					})
+
+					if vMinAlarm == 1.0 {
+						featureHasAlarm = true
+					}
 				}
 
 				if hasMaxAlarm {
@@ -432,6 +560,10 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Min:   OptionalNumber{true, 0},
 						Max:   OptionalNumber{true, 1},
 					})
+
+					if vMaxAlarm == 1.0 {
+						featureHasAlarm = true
+					}
 				}
 
 				if hasLcritAlarm {
@@ -442,6 +574,10 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Min:   OptionalNumber{true, 0},
 						Max:   OptionalNumber{true, 1},
 					})
+
+					if vLcritAlarm == 1.0 {
+						featureHasAlarm = true
+					}
 				}
 
 				if hasCritAlarm {
@@ -452,6 +588,10 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Min:   OptionalNumber{true, 0},
 						Max:   OptionalNumber{true, 1},
 					})
+
+					if vCritAlarm == 1.0 {
+						featureHasAlarm = true
+					}
 				}
 
 				if hasEmergencyAlarm {
@@ -462,6 +602,10 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Min:   OptionalNumber{true, 0},
 						Max:   OptionalNumber{true, 1},
 					})
+
+					if vEmergencyAlarm == 1.0 {
+						featureHasAlarm = true
+					}
 				}
 
 				if hasFault {
@@ -472,6 +616,10 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Min:   OptionalNumber{true, 0},
 						Max:   OptionalNumber{true, 1},
 					})
+
+					if vFault == 1.0 {
+						featureHasFault = true
+					}
 				}
 			case sensors.FeatureCurr:
 				vInput, hasInput, errsInput := getValue(chip, feature, sensors.SubfeatureCurrInput)
@@ -554,6 +702,26 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Min:   vMin,
 						Max:   vMax,
 					})
+
+					featureStats = append(featureStats, [2]string{"Input", fmtNum(vInput, "A")})
+
+					if vMin.IsSet {
+						featureStats = append(featureStats, [2]string{"Minimum", fmtNum(vMin.Value, "A")})
+					}
+
+					if vMax.IsSet {
+						featureStats = append(featureStats, [2]string{"Maximum", fmtNum(vMax.Value, "A")})
+					}
+
+					if vCrit.IsSet {
+						if vCrit.Start != negInf {
+							featureStats = append(featureStats, [2]string{"Critical, lower", fmtNum(vCrit.Start, "A")})
+						}
+
+						if vCrit.End != posInf {
+							featureStats = append(featureStats, [2]string{"Critical, upper", fmtNum(vCrit.End, "A")})
+						}
+					}
 				}
 
 				if hasAverage {
@@ -561,6 +729,8 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Label: pdl(chipName, featureName, "average"),
 						Value: vAverage,
 					})
+
+					featureStats = append(featureStats, [2]string{"Average", fmtNum(vAverage, "A")})
 				}
 
 				if hasLowest {
@@ -568,6 +738,8 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Label: pdl(chipName, featureName, "lowest"),
 						Value: vLowest,
 					})
+
+					featureStats = append(featureStats, [2]string{"Lowest", fmtNum(vLowest, "A")})
 				}
 
 				if hasHighest {
@@ -575,6 +747,8 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Label: pdl(chipName, featureName, "highest"),
 						Value: vHighest,
 					})
+
+					featureStats = append(featureStats, [2]string{"Highest", fmtNum(vHighest, "A")})
 				}
 
 				if hasAlarm {
@@ -585,6 +759,10 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Min:   OptionalNumber{true, 0},
 						Max:   OptionalNumber{true, 1},
 					})
+
+					if vAlarm == 1.0 {
+						featureHasAlarm = true
+					}
 				}
 
 				if hasMinAlarm {
@@ -595,6 +773,10 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Min:   OptionalNumber{true, 0},
 						Max:   OptionalNumber{true, 1},
 					})
+
+					if vMinAlarm == 1.0 {
+						featureHasAlarm = true
+					}
 				}
 
 				if hasMaxAlarm {
@@ -605,6 +787,10 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Min:   OptionalNumber{true, 0},
 						Max:   OptionalNumber{true, 1},
 					})
+
+					if vMaxAlarm == 1.0 {
+						featureHasAlarm = true
+					}
 				}
 
 				if hasLcritAlarm {
@@ -615,6 +801,10 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Min:   OptionalNumber{true, 0},
 						Max:   OptionalNumber{true, 1},
 					})
+
+					if vLcritAlarm == 1.0 {
+						featureHasAlarm = true
+					}
 				}
 
 				if hasCritAlarm {
@@ -625,6 +815,10 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Min:   OptionalNumber{true, 0},
 						Max:   OptionalNumber{true, 1},
 					})
+
+					if vCritAlarm == 1.0 {
+						featureHasAlarm = true
+					}
 				}
 			case sensors.FeaturePower:
 				{
@@ -651,6 +845,8 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 							Label: pdl(chipName, featureName, "average"),
 							Value: vAverage,
 						})
+
+						featureStats = append(featureStats, [2]string{"Average", fmtNum(vAverage, "W")})
 					}
 
 					if hasLowest {
@@ -658,6 +854,8 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 							Label: pdl(chipName, featureName, "average_lowest"),
 							Value: vLowest,
 						})
+
+						featureStats = append(featureStats, [2]string{"Average, lowest", fmtNum(vAverage, "W")})
 					}
 
 					if hasHighest {
@@ -665,6 +863,8 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 							Label: pdl(chipName, featureName, "average_highest"),
 							Value: vHighest,
 						})
+
+						featureStats = append(featureStats, [2]string{"Average, highest", fmtNum(vAverage, "W")})
 					}
 				}
 
@@ -681,6 +881,8 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 							UOM:   "s",
 							Value: vInput,
 						})
+
+						featureStats = append(featureStats, [2]string{"Average interval", fmtNum(vInput, "s")})
 					}
 				}
 
@@ -722,6 +924,22 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 							Crit:  vCrit,
 							Max:   vMax,
 						})
+
+						featureStats = append(featureStats, [2]string{"Input", fmtNum(vInput, "W")})
+
+						if vMax.IsSet {
+							featureStats = append(featureStats, [2]string{"Maximum", fmtNum(vMax.Value, "W")})
+						}
+
+						if vCrit.IsSet {
+							if vCrit.Start != negInf {
+								featureStats = append(featureStats, [2]string{"Critical, lower", fmtNum(vCrit.Start, "W")})
+							}
+
+							if vCrit.End != posInf {
+								featureStats = append(featureStats, [2]string{"Critical, upper", fmtNum(vCrit.End, "W")})
+							}
+						}
 					}
 
 					if hasLowest {
@@ -729,6 +947,8 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 							Label: pdl(chipName, featureName, "lowest"),
 							Value: vLowest,
 						})
+
+						featureStats = append(featureStats, [2]string{"Lowest", fmtNum(vLowest, "W")})
 					}
 
 					if hasHighest {
@@ -736,6 +956,8 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 							Label: pdl(chipName, featureName, "highest"),
 							Value: vHighest,
 						})
+
+						featureStats = append(featureStats, [2]string{"Highest", fmtNum(vHighest, "W")})
 					}
 				}
 
@@ -750,6 +972,8 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Label: pdl(chipName, featureName, "cap"),
 						Value: vInput,
 					})
+
+					featureStats = append(featureStats, [2]string{"Cap", fmtNum(vInput, "W")})
 				}
 
 				vAlarm, hasAlarm, errsAlarm := getValue(chip, feature, sensors.SubfeaturePowerAlarm)
@@ -784,6 +1008,10 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Min:   OptionalNumber{true, 0},
 						Max:   OptionalNumber{true, 1},
 					})
+
+					if vAlarm == 1.0 {
+						featureHasAlarm = true
+					}
 				}
 
 				if hasCapAlarm {
@@ -794,6 +1022,10 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Min:   OptionalNumber{true, 0},
 						Max:   OptionalNumber{true, 1},
 					})
+
+					if vCapAlarm == 1.0 {
+						featureHasAlarm = true
+					}
 				}
 
 				if hasMaxAlarm {
@@ -804,6 +1036,10 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Min:   OptionalNumber{true, 0},
 						Max:   OptionalNumber{true, 1},
 					})
+
+					if vMaxAlarm == 1.0 {
+						featureHasAlarm = true
+					}
 				}
 
 				if hasCritAlarm {
@@ -814,6 +1050,10 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Min:   OptionalNumber{true, 0},
 						Max:   OptionalNumber{true, 1},
 					})
+
+					if vCritAlarm == 1.0 {
+						featureHasAlarm = true
+					}
 				}
 			case sensors.FeatureEnergy:
 				vInput, hasInput, errsInput := getValue(chip, feature, sensors.SubfeatureEnergyInput)
@@ -827,6 +1067,8 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Label: pdl(chipName, featureName, "input"),
 						Value: vInput,
 					})
+
+					featureStats = append(featureStats, [2]string{"Input", fmtNum(vInput, "J")})
 				}
 			case sensors.FeatureHumidity:
 				vInput, hasInput, errsInput := getValue(chip, feature, sensors.SubfeatureHumidityInput)
@@ -840,6 +1082,8 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Label: pdl(chipName, featureName, "input"),
 						Value: vInput,
 					})
+
+					featureStats = append(featureStats, [2]string{"Input", fmtNum(vInput, "%")})
 				}
 			case sensors.FeatureIntrusion:
 				vAlarm, hasAlarm, errsAlarm := getValue(chip, feature, sensors.SubfeatureIntrusionAlarm)
@@ -856,11 +1100,51 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Min:   OptionalNumber{true, 0},
 						Max:   OptionalNumber{true, 1},
 					})
+
+					if vAlarm == 1.0 {
+						featureHasAlarm = true
+					}
+				}
+			default:
+				featureIsSupported = false
+			}
+
+			if featureIsSupported {
+				longOutput.Write([]byte("<p>Feature: "))
+				longOutput.Write([]byte(html.EscapeString(featureName)))
+
+				if label, hasLabel := chip.GetLabel(feature); hasLabel && label != featureName {
+					longOutput.Write([]byte(" ("))
+					longOutput.Write([]byte(html.EscapeString(label)))
+					longOutput.Write([]byte{')'})
+				}
+
+				if featureHasFault {
+					longOutput.Write([]byte(` <b style="color: #f70000;">FAULT</b>`))
+				} else if featureHasAlarm {
+					longOutput.Write([]byte(` <b style="color: #f70000;">ALARM</b>`))
+				}
+
+				longOutput.Write([]byte("</p>"))
+
+				if len(featureStats) > 0 {
+					longOutput.Write([]byte("<table><tbody>"))
+
+					for _, stat := range featureStats {
+						longOutput.Write([]byte("<tr><td>"))
+						longOutput.Write([]byte(html.EscapeString(stat[0])))
+						longOutput.Write([]byte("</td><td>"))
+						longOutput.Write([]byte(html.EscapeString(stat[1])))
+						longOutput.Write([]byte("</td></tr>"))
+					}
+
+					longOutput.Write([]byte("</tbody></table>"))
 				}
 			}
 		}
 	}
 
+	output = string(longOutput.Bytes())
 	return
 }
 
@@ -930,4 +1214,8 @@ func getOptionalThreshold(chip *sensors.ChipName, feature sensors.Feature, typeS
 
 func pdl(perfdataComponents ...string) string {
 	return strings.Join(perfdataComponents, "::")
+}
+
+func fmtNum(num float64, unit string) string {
+	return strconv.FormatFloat(num, 'f', -1, 64) + " " + unit
 }

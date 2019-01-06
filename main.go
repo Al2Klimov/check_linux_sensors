@@ -217,6 +217,79 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Value: vHighest,
 					})
 				}
+			case sensors.FeatureCurr:
+				vInput, hasInput, errsInput := getValue(chip, feature, sensors.SubfeatureCurrInput)
+				if errsInput != nil {
+					errs = errsInput
+					return
+				}
+
+				vAverage, hasAverage, errsAverage := getValue(chip, feature, sensors.SubfeatureCurrAverage)
+				if errsAverage != nil {
+					errs = errsAverage
+					return
+				}
+
+				vLowest, hasLowest, errsLowest := getValue(chip, feature, sensors.SubfeatureCurrLowest)
+				if errsLowest != nil {
+					errs = errsLowest
+					return
+				}
+
+				vHighest, hasHighest, errsHighest := getValue(chip, feature, sensors.SubfeatureCurrHighest)
+				if errsHighest != nil {
+					errs = errsHighest
+					return
+				}
+
+				if hasInput {
+					vMin, errsMin := getOptionalValue(chip, feature, sensors.SubfeatureCurrMin)
+					if errsMin != nil {
+						errs = errsMin
+						return
+					}
+
+					vMax, errsMax := getOptionalValue(chip, feature, sensors.SubfeatureCurrMax)
+					if errsMax != nil {
+						errs = errsMax
+						return
+					}
+
+					vCrit, errsCrit := getOptionalThreshold(chip, feature, sensors.SubfeatureCurrLcrit, sensors.SubfeatureCurrCrit)
+					if errsCrit != nil {
+						errs = errsCrit
+						return
+					}
+
+					perfdata = append(perfdata, Perfdata{
+						Label: pdl(chipName, featureName, "input"),
+						Value: vInput,
+						Crit:  vCrit,
+						Min:   vMin,
+						Max:   vMax,
+					})
+				}
+
+				if hasAverage {
+					perfdata = append(perfdata, Perfdata{
+						Label: pdl(chipName, featureName, "average"),
+						Value: vAverage,
+					})
+				}
+
+				if hasLowest {
+					perfdata = append(perfdata, Perfdata{
+						Label: pdl(chipName, featureName, "lowest"),
+						Value: vLowest,
+					})
+				}
+
+				if hasHighest {
+					perfdata = append(perfdata, Perfdata{
+						Label: pdl(chipName, featureName, "highest"),
+						Value: vHighest,
+					})
+				}
 			}
 		}
 	}

@@ -290,6 +290,131 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Value: vHighest,
 					})
 				}
+			case sensors.FeaturePower:
+				{
+					vAverage, hasAverage, errsAverage := getValue(chip, feature, sensors.SubfeaturePowerAverage)
+					if errsAverage != nil {
+						errs = errsAverage
+						return
+					}
+
+					vLowest, hasLowest, errsLowest := getValue(chip, feature, sensors.SubfeaturePowerAverageLowest)
+					if errsLowest != nil {
+						errs = errsLowest
+						return
+					}
+
+					vHighest, hasHighest, errsHighest := getValue(chip, feature, sensors.SubfeaturePowerAverageHighest)
+					if errsHighest != nil {
+						errs = errsHighest
+						return
+					}
+
+					if hasAverage {
+						perfdata = append(perfdata, Perfdata{
+							Label: pdl(chipName, featureName, "average"),
+							Value: vAverage,
+						})
+					}
+
+					if hasLowest {
+						perfdata = append(perfdata, Perfdata{
+							Label: pdl(chipName, featureName, "average_lowest"),
+							Value: vLowest,
+						})
+					}
+
+					if hasHighest {
+						perfdata = append(perfdata, Perfdata{
+							Label: pdl(chipName, featureName, "average_highest"),
+							Value: vHighest,
+						})
+					}
+				}
+
+				{
+					vInput, hasInput, errsInput := getValue(chip, feature, sensors.SubfeaturePowerAverageInterval)
+					if errsInput != nil {
+						errs = errsInput
+						return
+					}
+
+					if hasInput {
+						perfdata = append(perfdata, Perfdata{
+							Label: pdl(chipName, featureName, "average_interval"),
+							UOM:   "s",
+							Value: vInput,
+						})
+					}
+				}
+
+				{
+					vInput, hasInput, errsInput := getValue(chip, feature, sensors.SubfeaturePowerInput)
+					if errsInput != nil {
+						errs = errsInput
+						return
+					}
+
+					vLowest, hasLowest, errsLowest := getValue(chip, feature, sensors.SubfeaturePowerInputLowest)
+					if errsLowest != nil {
+						errs = errsLowest
+						return
+					}
+
+					vHighest, hasHighest, errsHighest := getValue(chip, feature, sensors.SubfeaturePowerInputHighest)
+					if errsHighest != nil {
+						errs = errsHighest
+						return
+					}
+
+					if hasInput {
+						vMax, errsMax := getOptionalValue(chip, feature, sensors.SubfeaturePowerMax)
+						if errsMax != nil {
+							errs = errsMax
+							return
+						}
+
+						vCrit, errsCrit := getOptionalThreshold(chip, feature, sensors.SubfeaturePowerCrit, sensors.SubfeaturePowerCrit)
+						if errsCrit != nil {
+							errs = errsCrit
+							return
+						}
+
+						perfdata = append(perfdata, Perfdata{
+							Label: pdl(chipName, featureName, "input"),
+							Value: vInput,
+							Crit:  vCrit,
+							Max:   vMax,
+						})
+					}
+
+					if hasLowest {
+						perfdata = append(perfdata, Perfdata{
+							Label: pdl(chipName, featureName, "lowest"),
+							Value: vLowest,
+						})
+					}
+
+					if hasHighest {
+						perfdata = append(perfdata, Perfdata{
+							Label: pdl(chipName, featureName, "highest"),
+							Value: vHighest,
+						})
+					}
+				}
+
+				vInput, hasInput, errsInput := getValue(chip, feature, sensors.SubfeaturePowerCap)
+				if errsInput != nil {
+					errs = errsInput
+					return
+				}
+
+				if hasInput {
+					perfdata = append(perfdata, Perfdata{
+						Label: pdl(chipName, featureName, "cap"),
+						Value: vInput,
+					})
+				}
 			}
 		}
 	}
@@ -322,9 +447,17 @@ func getOptionalValue(chip *sensors.ChipName, feature sensors.Feature, typ senso
 }
 
 func getOptionalThreshold(chip *sensors.ChipName, feature sensors.Feature, typeStart, typeEnd sensors.SubfeatureType) (OptionalThreshold, map[string]error) {
-	vStart, hasStart, errsStart := getValue(chip, feature, typeStart)
-	if errsStart != nil {
-		return OptionalThreshold{}, errsStart
+	var vStart float64
+	var hasStart bool
+	var errsStart map[string]error
+
+	if typeStart == typeEnd {
+		hasStart = false
+	} else {
+		vStart, hasStart, errsStart = getValue(chip, feature, typeStart)
+		if errsStart != nil {
+			return OptionalThreshold{}, errsStart
+		}
 	}
 
 	vEnd, hasEnd, errsEnd := getValue(chip, feature, typeEnd)

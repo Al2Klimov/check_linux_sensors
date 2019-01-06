@@ -235,6 +235,12 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 					return
 				}
 
+				vFault, hasFault, errsFault := getValue(chip, feature, sensors.SubfeatureFanFault)
+				if errsFault != nil {
+					errs = errsFault
+					return
+				}
+
 				if hasInput {
 					vMin, errsMin := getOptionalValue(chip, feature, sensors.SubfeatureFanMin)
 					if errsMin != nil {
@@ -280,6 +286,16 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 					perfdata = append(perfdata, Perfdata{
 						Label: pdl(chipName, featureName, "max_alarm"),
 						Value: vMaxAlarm,
+						Crit:  OptionalThreshold{true, false, 0, 0},
+						Min:   OptionalNumber{true, 0},
+						Max:   OptionalNumber{true, 1},
+					})
+				}
+
+				if hasFault {
+					perfdata = append(perfdata, Perfdata{
+						Label: pdl(chipName, featureName, "fault"),
+						Value: vFault,
 						Crit:  OptionalThreshold{true, false, 0, 0},
 						Min:   OptionalNumber{true, 0},
 						Max:   OptionalNumber{true, 1},
@@ -337,6 +353,12 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 				vEmergencyAlarm, hasEmergencyAlarm, errsEmergencyAlarm := getValue(chip, feature, sensors.SubfeatureTempEmergencyAlarm)
 				if errsEmergencyAlarm != nil {
 					errs = errsEmergencyAlarm
+					return
+				}
+
+				vFault, hasFault, errsFault := getValue(chip, feature, sensors.SubfeatureTempFault)
+				if errsFault != nil {
+					errs = errsFault
 					return
 				}
 
@@ -436,6 +458,16 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 					perfdata = append(perfdata, Perfdata{
 						Label: pdl(chipName, featureName, "emergency_alarm"),
 						Value: vEmergencyAlarm,
+						Crit:  OptionalThreshold{true, false, 0, 0},
+						Min:   OptionalNumber{true, 0},
+						Max:   OptionalNumber{true, 1},
+					})
+				}
+
+				if hasFault {
+					perfdata = append(perfdata, Perfdata{
+						Label: pdl(chipName, featureName, "fault"),
+						Value: vFault,
 						Crit:  OptionalThreshold{true, false, 0, 0},
 						Min:   OptionalNumber{true, 0},
 						Max:   OptionalNumber{true, 1},

@@ -34,8 +34,8 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 	sensors.Init(nil)
 	defer sensors.Cleanup()
 
+	shortOutput := bytes.Buffer{}
 	longOutput := bytes.Buffer{}
-	longOutput.Write([]byte("\n\n"))
 
 	for _, chip := range sensors.GetDetectedChips(nil) {
 		chipNameRaw, errMB := chip.MarshalBinary()
@@ -45,18 +45,22 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 		}
 
 		chipName := string(chipNameRaw)
+		chipDesc := bytes.Buffer{}
+		chipOutput := bytes.Buffer{}
 
-		longOutput.Write([]byte("<p><b>Chip: "))
-		longOutput.Write([]byte(html.EscapeString(chipName)))
-		longOutput.Write([]byte("</b>"))
+		chipDesc.Write([]byte("<p><b>Chip: "))
+		chipDesc.Write([]byte(html.EscapeString(chipName)))
+		chipDesc.Write([]byte("</b>"))
 
 		if adapterName, hasAdapterName := chip.GetBus().GetAdapterName(); hasAdapterName {
-			longOutput.Write([]byte(" ("))
-			longOutput.Write([]byte(html.EscapeString(adapterName)))
-			longOutput.Write([]byte{')'})
+			chipDesc.Write([]byte(" ("))
+			chipDesc.Write([]byte(html.EscapeString(adapterName)))
+			chipDesc.Write([]byte{')'})
 		}
 
-		longOutput.Write([]byte("</p>"))
+		chipDesc.Write([]byte("</p>"))
+
+		longOutput.Write(chipDesc.Bytes())
 
 		for _, feature := range chip.GetFeatures() {
 			featureName := feature.GetName()
@@ -1110,22 +1114,30 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 			}
 
 			if featureIsSupported {
-				longOutput.Write([]byte("<p>Feature: "))
-				longOutput.Write([]byte(html.EscapeString(featureName)))
+				featureDesc := bytes.Buffer{}
+
+				featureDesc.Write([]byte("<p>Feature: "))
+				featureDesc.Write([]byte(html.EscapeString(featureName)))
 
 				if label, hasLabel := chip.GetLabel(feature); hasLabel && label != featureName {
-					longOutput.Write([]byte(" ("))
-					longOutput.Write([]byte(html.EscapeString(label)))
-					longOutput.Write([]byte{')'})
+					featureDesc.Write([]byte(" ("))
+					featureDesc.Write([]byte(html.EscapeString(label)))
+					featureDesc.Write([]byte{')'})
 				}
 
 				if featureHasFault {
-					longOutput.Write([]byte(` <b style="color: #f70000;">FAULT</b>`))
+					featureDesc.Write([]byte(` <b style="color: #f70000;">FAULT</b>`))
 				} else if featureHasAlarm {
-					longOutput.Write([]byte(` <b style="color: #f70000;">ALARM</b>`))
+					featureDesc.Write([]byte(` <b style="color: #f70000;">ALARM</b>`))
 				}
 
-				longOutput.Write([]byte("</p>"))
+				featureDesc.Write([]byte("</p>"))
+
+				longOutput.Write(featureDesc.Bytes())
+
+				if featureHasFault || featureHasAlarm {
+					chipOutput.Write(featureDesc.Bytes())
+				}
 
 				if len(featureStats) > 0 {
 					longOutput.Write([]byte("<table><tbody>"))
@@ -1142,9 +1154,17 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 				}
 			}
 		}
+
+		if chipOutput.Len() > 0 {
+			shortOutput.Write(chipDesc.Bytes())
+			shortOutput.Write(chipOutput.Bytes())
+		}
 	}
 
-	output = string(longOutput.Bytes())
+	shortOutput.Write([]byte("\n\n<hr>"))
+	longOutput.WriteTo(&shortOutput)
+
+	output = string(shortOutput.Bytes())
 	return
 }
 

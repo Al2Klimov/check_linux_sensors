@@ -157,6 +157,66 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Max:   vMax,
 					})
 				}
+			case sensors.FeatureTemp:
+				vInput, hasInput, errsInput := getValue(chip, feature, sensors.SubfeatureTempInput)
+				if errsInput != nil {
+					errs = errsInput
+					return
+				}
+
+				vLowest, hasLowest, errsLowest := getValue(chip, feature, sensors.SubfeatureTempLowest)
+				if errsLowest != nil {
+					errs = errsLowest
+					return
+				}
+
+				vHighest, hasHighest, errsHighest := getValue(chip, feature, sensors.SubfeatureTempHighest)
+				if errsHighest != nil {
+					errs = errsHighest
+					return
+				}
+
+				if hasInput {
+					vMin, errsMin := getOptionalValue(chip, feature, sensors.SubfeatureTempMin)
+					if errsMin != nil {
+						errs = errsMin
+						return
+					}
+
+					vMax, errsMax := getOptionalValue(chip, feature, sensors.SubfeatureTempMax)
+					if errsMax != nil {
+						errs = errsMax
+						return
+					}
+
+					vCrit, errsCrit := getOptionalThreshold(chip, feature, sensors.SubfeatureTempLcrit, sensors.SubfeatureTempCrit)
+					if errsCrit != nil {
+						errs = errsCrit
+						return
+					}
+
+					perfdata = append(perfdata, Perfdata{
+						Label: pdl(chipName, featureName, "input"),
+						Value: vInput,
+						Crit:  vCrit,
+						Min:   vMin,
+						Max:   vMax,
+					})
+				}
+
+				if hasLowest {
+					perfdata = append(perfdata, Perfdata{
+						Label: pdl(chipName, featureName, "lowest"),
+						Value: vLowest,
+					})
+				}
+
+				if hasHighest {
+					perfdata = append(perfdata, Perfdata{
+						Label: pdl(chipName, featureName, "highest"),
+						Value: vHighest,
+					})
+				}
 			}
 		}
 	}

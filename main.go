@@ -415,6 +415,32 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 						Value: vInput,
 					})
 				}
+			case sensors.FeatureEnergy:
+				vInput, hasInput, errsInput := getValue(chip, feature, sensors.SubfeatureEnergyInput)
+				if errsInput != nil {
+					errs = errsInput
+					return
+				}
+
+				if hasInput {
+					perfdata = append(perfdata, Perfdata{
+						Label: pdl(chipName, featureName, "input"),
+						Value: vInput,
+					})
+				}
+			case sensors.FeatureHumidity:
+				vInput, hasInput, errsInput := getValue(chip, feature, sensors.SubfeatureHumidityInput)
+				if errsInput != nil {
+					errs = errsInput
+					return
+				}
+
+				if hasInput {
+					perfdata = append(perfdata, Perfdata{
+						Label: pdl(chipName, featureName, "input"),
+						Value: vInput,
+					})
+				}
 			}
 		}
 	}

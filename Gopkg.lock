@@ -3,19 +3,19 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:fdbd4f7875d4dd7aa7cf4081cfa7f03d4e79b165823e70209843a73928b0589c"
+  digest = "1:91dc33da5abcf542dd61ab9dae6fd800b7dca84595d0dd14d7b7c11926cbdf9a"
   name = "github.com/Al2Klimov/go-gen-source-repos"
   packages = ["."]
   pruneopts = "UT"
-  revision = "6d51d947ed0c66ae27c3eb5dcfbca5a2145818af"
+  revision = "ed8c49be1cc795dcbfb1be2c95514aa304461ab2"
 
 [[projects]]
   branch = "master"
-  digest = "1:a2d20ca4ac73233950c7d14c6ccca85ef4440144eaa69d23f24dafefaa4a996a"
+  digest = "1:7ec3703d4fa4f6a2f3f50dcc93a9e3b1c90afa069c953a3a70f54031fdcd81da"
   name = "github.com/Al2Klimov/go-linux-sensors"
   packages = ["."]
   pruneopts = "UT"
-  revision = "7fce7cfded3e8d2a7f677e6c1be04451914f9527"
+  revision = "2c1fe826a00dc1fe080ecb8234f1a7290324d5d0"
 
 [[projects]]
   digest = "1:2367486b6f735ef32e09d8bd8394167b6944aaef91a36788801ce460ff4051d8"

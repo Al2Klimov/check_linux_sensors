@@ -16,3 +16,14 @@ install:
   - .travis-ci/compile.sh
 
 script: "true"
+
+deploy:
+  provider: releases
+  api_key:
+    secure: VTfA5R3FptibcFu8SrZpXnowZA93hO14MwuU4yPmKOyHBto6OZ6MUDHULQBpVjaZfT4gtDFvfgfitw9rlXS0vVOhE6PfDiBYaxGNeq1xqGVuVAhIk5wjQ2/UyClgY3Qa1APUVekg2i/Cr4/fXovwrR1F7wxwcylhVIi7UbpLJ5voxTfrePiebSo/r+QD/FrPHhaJfrBHv3DhfwSslkcBl1IHqlC+nseNRvfL7IHxtsjsUxPfXrQUeZH+URqQJ4G5ri4+pIwtwNr1RUyGvpb/w6tIRBxnIY/HdsdxrrdfApEeYk8BCA/Wiyi2XjvrC0H7Nr/WxHI2rEofJitsVJE0unOAWiaWmkZuXsBDTEJi9PfI1CoiTA16Til2mX97PIKDQ/a/ftrgoGcpewCWUc+s/ce1BUesO0TYXIlYvpnK1EsVVpOpoyVqwzZ3cDiEvyTUVeJN1fGeVKboCZG0HsUjM/NwZCBu+iLac4z9MKoE6Lm29gz1IidQyO2oHH/QzRMaNA6hjKLa3cl6wNGxCivy8D49YMiIp5CoRGSmADjW2nUDzKNqy/oj+9wk7k6yZhJdy3FEjuh1/j12x88gmmKLQt+hBJDGPe0XAMqXDSRzXeo1Apq6hn7t5swR8rD94rVQjmQ09Zk5Vo2v5x8xdGsVKKTSdpLbm+Uw7vTUkHH8zmU=
+  file_glob: true
+  file: check_*.*-*
+  skip_cleanup: true
+  on:
+    tags: true
+    go: "1.x"

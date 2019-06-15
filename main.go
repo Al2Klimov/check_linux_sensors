@@ -1155,8 +1155,9 @@ func checkLinuxSensors() (output string, perfdata PerfdataCollection, errs map[s
 			}
 		}
 
+		shortOutput.Write(chipDesc.Bytes())
+
 		if chipOutput.Len() > 0 {
-			shortOutput.Write(chipDesc.Bytes())
 			shortOutput.Write(chipOutput.Bytes())
 		}
 	}

@@ -1,4 +1,4 @@
-FROM golang:1.11-stretch
+FROM golang:1.11
 SHELL ["/bin/bash", "-exo", "pipefail", "-c"]
 
 RUN apt-get update ;\

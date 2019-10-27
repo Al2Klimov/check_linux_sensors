@@ -1,16 +1,16 @@
-FROM golang:1.11-stretch
+FROM golang:1.11
 SHELL ["/bin/bash", "-exo", "pipefail", "-c"]
 
 RUN dpkg --add-architecture armel ;\
 	apt-get update ;\
 	DEBIAN_FRONTEND=noninteractive apt-get install --no-install-{recommends,suggests} -y \
-		gcc-arm-linux-gnueabi {libc6-dev,libsensors4}:armel libsensors4-dev ;\
+		gcc-arm-linux-gnueabi {libc6-dev,libsensors5}:armel libsensors4-dev ;\
 	apt-get clean ;\
 	rm -vrf /var/lib/apt/lists/*
 
-RUN  for f in $(find / -name libsensors.so.4); do \
+RUN  for f in $(find / -name libsensors.so.5); do \
 	pushd "$(dirname "$f")" ;\
-	ln -vs libsensors.so{.4,} || true ;\
+	ln -vs libsensors.so{.5,} || true ;\
 	popd ;\
 	done
 
